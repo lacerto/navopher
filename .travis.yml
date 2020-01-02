@@ -1,0 +1,8 @@
+language: c
+
+before_install:
+  - sudo apt-get -y install libglib-2.0-dev
+
+script:
+  - make
+  
