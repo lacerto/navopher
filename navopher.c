@@ -85,5 +85,5 @@ void free_file_list_item(gpointer item) {
 }
 
 void print_file_list_item(gpointer item, gpointer user_data) {
-    printf("%s\n", item);
+    printf("%s\n", (gchar*) item);
 }
