@@ -16,7 +16,10 @@ test:
 		touch testdir/2019-11-26__Test_6
 		touch testdir/Test7.md
 		touch testdir/xx__Test8.txt
-		./navopher testdir
+		echo "line 1" >> testdir/map.template
+		echo "line 2" >> testdir/map.template
+		echo "今日は！" >> testdir/map.template
+		./navopher testdir map.template
 
 clean:
 		rm -rf testdir

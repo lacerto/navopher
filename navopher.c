@@ -16,14 +16,17 @@ struct mapline* handle_regular_file(GFileInfo* info);
 struct mapline* handle_directory(GFileInfo* info);
 gchar* remove_ext(gchar* filename);
 gchar* split_name(gchar* name);
+void read_template_file(gchar* path);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
     GSList* map_lines = NULL;
 
-    if (argc != 2) {
+    if (argc != 3) {
         return EXIT_FAILURE;
     }
+
+    read_template_file(g_build_filename(argv[1], argv[2], NULL));
 
     dir = g_file_new_for_commandline_arg(argv[1]);
     map_lines = get_map_lines(dir);
@@ -75,7 +78,7 @@ GSList* get_map_lines(GFile* dir) {
             &err
         );
         if (!success) {
-            fprintf(stderr, "Error: %s\n", err->message);
+            fprintf(stderr, "%s\n", err->message);
             g_error_free(err);
             g_object_unref(file_enumerator);
             return NULL;
@@ -174,4 +177,40 @@ gchar* split_name(gchar* name) {
     }
     g_free(name);
     return g_string_free(retval, FALSE);
+}
+
+void read_template_file(gchar* path) {
+    GFile* template_file = NULL;
+    GFileInputStream* in_stream = NULL;
+    GDataInputStream* data_stream = NULL;
+    GError* err = NULL;
+    gchar* line;
+
+    template_file = g_file_new_for_path(path);
+    in_stream = g_file_read(template_file, NULL, &err);
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", err->message);
+        g_error_free(err);
+        g_object_unref(template_file);
+        return;
+    }
+
+    data_stream = g_data_input_stream_new((GInputStream*) in_stream);
+    while (TRUE) {
+        line = g_data_input_stream_read_line_utf8(data_stream, NULL, NULL, &err);
+        if (err != NULL) {
+            fprintf(stderr, "%s\n", err->message);
+            g_error_free(err);
+            break;
+        }
+        // EOF reached
+        if (line == NULL) break;
+
+        printf("%s\n", line);
+        g_free(line);
+    }
+    
+    g_object_unref(data_stream);
+    g_object_unref(in_stream);
+    g_object_unref(template_file);
 }
