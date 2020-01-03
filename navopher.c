@@ -12,6 +12,9 @@ struct mapline {
 GSList* get_map_lines(GFile* dir);
 void free_map_line(gpointer item);
 void print_map_line(gpointer item, gpointer user_data);
+struct mapline* handle_regular_file(GFileInfo* info);
+struct mapline* handle_directory(GFileInfo* info);
+gchar* remove_ext(gchar* filename);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
@@ -82,16 +85,10 @@ GSList* get_map_lines(GFile* dir) {
         type = g_file_info_get_file_type(info);
         switch (type) {
             case G_FILE_TYPE_REGULAR:
-                line = g_new(struct mapline, 1);
-                line->type = 0;
-                line->name = g_strdup(g_file_info_get_display_name(info));
-                line->selector = g_strdup(g_file_info_get_display_name(info));
+                line = handle_regular_file(info);
                 break;
             case G_FILE_TYPE_DIRECTORY:
-                line = g_new(struct mapline, 1);
-                line->type = 1;
-                line->name = g_strdup(g_file_info_get_display_name(info));
-                line->selector = g_strdup(g_file_info_get_display_name(info));
+                line = handle_directory(info);
                 break;
             default:
                 break;
@@ -125,4 +122,38 @@ void print_map_line(gpointer item, gpointer user_data) {
         line->name,
         line->selector    
     );
+}
+
+struct mapline* handle_regular_file(GFileInfo* info) {
+    struct mapline* line = NULL;
+    gchar const* name = g_file_info_get_display_name(info); 
+
+    if (g_str_has_suffix(name, ".txt") || g_str_has_suffix(name, ".md")) {
+        line = g_new(struct mapline, 1);
+        line->type = 0;
+        line->name = remove_ext(g_strdup(name));
+        line->selector = g_strdup(name);
+    }
+
+    return line;
+}
+
+struct mapline* handle_directory(GFileInfo* info) {
+    struct mapline* line = NULL;
+    gchar const* name = g_file_info_get_display_name(info); 
+
+    line = g_new(struct mapline, 1);
+    line->type = 1;
+    line->name = g_strdup(name);
+    line->selector = g_strdup(name);
+
+    return line;
+}
+
+gchar* remove_ext(gchar* filename) {
+    gchar* dot = g_strrstr(filename, ".");
+    if (dot != NULL) {
+        *dot = '\0';
+    }
+    return filename;
 }

@@ -12,6 +12,8 @@ test:
 		touch testdir/2020-01-02__Test_3.txt
 		touch testdir/2019-11-25__Test_4.md
 		mkdir testdir/2019-12-05__Test_dir_1
+		touch testdir/2019-11-27__Test_5.png
+		touch testdir/2019-11-26__Test_6
 		./navopher testdir
 
 clean:
