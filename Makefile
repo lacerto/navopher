@@ -1,6 +1,18 @@
-navopher: navopher.c
-		$(CC) `pkg-config --cflags glib-2.0 gio-2.0` $< -o $@ `pkg-config --libs glib-2.0 gio-2.0`
+CFLAGS=$(shell pkg-config --cflags glib-2.0 gio-2.0)
+LDLIBS=$(shell pkg-config --libs glib-2.0 gio-2.0)
 
-.PHONY: test
+navopher: navopher.c
+		$(CC) $(CFLAGS) $< -o $@ $(LDLIBS)
+
+.PHONY: test clean
 test:
-		./navopher .
+		mkdir testdir
+		touch testdir/2020-01-03__Test_1.md
+		touch testdir/2020-01-01__Test_2.txt
+		touch testdir/2020-01-02__Test_3.txt
+		touch testdir/2019-11-25__Test_4.md
+		mkdir testdir/2019-12-05__Test_dir_1
+		./navopher testdir
+
+clean:
+		rm -rf testdir
