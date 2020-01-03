@@ -12,10 +12,11 @@ struct mapline {
 GSList* get_map_lines(GFile* dir);
 void free_map_line(gpointer item);
 void print_map_line(gpointer item, gpointer user_data);
+gint compare_map_lines(gconstpointer a, gconstpointer b);
 struct mapline* handle_regular_file(GFileInfo* info);
 struct mapline* handle_directory(GFileInfo* info);
 gchar* remove_ext(gchar* filename);
-gchar* split_name(gchar* name);
+gchar* prepare_name(gchar* name);
 void read_template_file(gchar* path);
 
 int main(int argc, char** argv) {
@@ -108,6 +109,9 @@ GSList* get_map_lines(GFile* dir) {
     }
 
     g_object_unref(file_enumerator);
+
+    map_lines = g_slist_sort(map_lines, compare_map_lines);
+    map_lines = g_slist_reverse(map_lines);
     return map_lines;
 }
 
@@ -128,15 +132,24 @@ void print_map_line(gpointer item, gpointer user_data) {
     );
 }
 
+gint compare_map_lines(gconstpointer a, gconstpointer b) {
+    struct mapline const* line_a = (struct mapline*) a;
+    struct mapline const* line_b = (struct mapline*) b;
+
+    return g_strcmp0(line_a->name, line_b->name);
+}
+
 struct mapline* handle_regular_file(GFileInfo* info) {
     struct mapline* line = NULL;
-    gchar const* name = g_file_info_get_display_name(info); 
+    gchar const* file_name = g_file_info_get_display_name(info); 
 
-    if (g_str_has_suffix(name, ".txt") || g_str_has_suffix(name, ".md")) {
+    if (g_str_has_suffix(file_name, ".txt") || g_str_has_suffix(file_name, ".md")) {
+        gchar* name = g_strdup(file_name);
         line = g_new(struct mapline, 1);
         line->type = 0;
-        line->name = split_name(remove_ext(g_strdup(name)));
-        line->selector = g_strdup(name);
+        line->name = prepare_name(remove_ext(name));
+        line->selector = g_strdup(file_name);
+        g_free(name);
     }
 
     return line;
@@ -148,7 +161,7 @@ struct mapline* handle_directory(GFileInfo* info) {
 
     line = g_new(struct mapline, 1);
     line->type = 1;
-    line->name = split_name(g_strdup(name));
+    line->name = prepare_name(g_strdup(name));
     line->selector = g_strdup(name);
 
     return line;
@@ -162,7 +175,7 @@ gchar* remove_ext(gchar* filename) {
     return filename;
 }
 
-gchar* split_name(gchar* name) {
+gchar* prepare_name(gchar* name) {
     GString* retval = NULL;
     gchar** tokens = g_strsplit(name, "__", -1);
     gint i;
@@ -175,7 +188,7 @@ gchar* split_name(gchar* name) {
             g_string_append_printf(retval, " %s", g_strdelimit(tokens[i], "_", ' '));
         }
     }
-    g_free(name);
+
     return g_string_free(retval, FALSE);
 }
 
@@ -209,7 +222,7 @@ void read_template_file(gchar* path) {
         printf("%s\n", line);
         g_free(line);
     }
-    
+
     g_object_unref(data_stream);
     g_object_unref(in_stream);
     g_object_unref(template_file);
