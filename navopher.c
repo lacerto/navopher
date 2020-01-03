@@ -15,6 +15,7 @@ void print_map_line(gpointer item, gpointer user_data);
 struct mapline* handle_regular_file(GFileInfo* info);
 struct mapline* handle_directory(GFileInfo* info);
 gchar* remove_ext(gchar* filename);
+gchar* split_name(gchar* name);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
@@ -131,7 +132,7 @@ struct mapline* handle_regular_file(GFileInfo* info) {
     if (g_str_has_suffix(name, ".txt") || g_str_has_suffix(name, ".md")) {
         line = g_new(struct mapline, 1);
         line->type = 0;
-        line->name = remove_ext(g_strdup(name));
+        line->name = split_name(remove_ext(g_strdup(name)));
         line->selector = g_strdup(name);
     }
 
@@ -144,7 +145,7 @@ struct mapline* handle_directory(GFileInfo* info) {
 
     line = g_new(struct mapline, 1);
     line->type = 1;
-    line->name = g_strdup(name);
+    line->name = split_name(g_strdup(name));
     line->selector = g_strdup(name);
 
     return line;
@@ -156,4 +157,21 @@ gchar* remove_ext(gchar* filename) {
         *dot = '\0';
     }
     return filename;
+}
+
+gchar* split_name(gchar* name) {
+    GString* retval = NULL;
+    gchar** tokens = g_strsplit(name, "__", -1);
+    gint i;
+
+    for (i=0; tokens[i] != NULL; i++) {
+        if (i == 0) {
+            retval = g_string_new("");
+            g_string_append_printf(retval, "[%s]", tokens[i]);
+        } else {
+            g_string_append_printf(retval, " %s", g_strdelimit(tokens[i], "_", ' '));
+        }
+    }
+    g_free(name);
+    return g_string_free(retval, FALSE);
 }

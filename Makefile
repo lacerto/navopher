@@ -14,6 +14,8 @@ test:
 		mkdir testdir/2019-12-05__Test_dir_1
 		touch testdir/2019-11-27__Test_5.png
 		touch testdir/2019-11-26__Test_6
+		touch testdir/Test7.md
+		touch testdir/xx__Test8.txt
 		./navopher testdir
 
 clean:
