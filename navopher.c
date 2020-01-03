@@ -11,17 +11,19 @@ struct mapline {
 
 GSList* get_map_lines(GFile* dir);
 void free_map_line(gpointer item);
-void print_map_line(gpointer item, gpointer user_data);
 gint compare_map_lines(gconstpointer a, gconstpointer b);
 struct mapline* handle_regular_file(GFileInfo* info);
 struct mapline* handle_directory(GFileInfo* info);
 gchar* remove_ext(gchar* filename);
 gchar* prepare_name(gchar* name);
 void read_template_file(gchar* path);
+gboolean create_gophermap(gchar* dir, GSList* map_lines);
+void write_map_line(gpointer item, gpointer stream);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
     GSList* map_lines = NULL;
+    gboolean success;
 
     if (argc != 3) {
         return EXIT_FAILURE;
@@ -37,8 +39,11 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    g_slist_foreach(map_lines, print_map_line, NULL);
-    g_slist_free_full(map_lines, free_map_line);
+    success = create_gophermap(argv[1], map_lines);
+    g_slist_free_full(map_lines, free_map_line);     
+    if (!success) {
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
@@ -120,16 +125,6 @@ void free_map_line(gpointer item) {
     g_free(line->name);
     g_free(line->selector);
     g_free(line);
-}
-
-void print_map_line(gpointer item, gpointer user_data) {
-    struct mapline* line = (struct mapline*) item;
-    printf(
-        "%d%s\t%s\n",
-        line->type,
-        line->name,
-        line->selector    
-    );
 }
 
 gint compare_map_lines(gconstpointer a, gconstpointer b) {
@@ -226,4 +221,52 @@ void read_template_file(gchar* path) {
     g_object_unref(data_stream);
     g_object_unref(in_stream);
     g_object_unref(template_file);
+}
+
+gboolean create_gophermap(gchar* dir, GSList* map_lines) {
+    GFile* gophermap = NULL;
+    GFileOutputStream* out_stream = NULL;
+    GError* err = NULL;
+
+    gophermap = g_file_new_build_filename(dir, "gophermap", NULL);
+    out_stream = g_file_replace(
+        gophermap,
+        NULL,
+        FALSE,
+        G_FILE_CREATE_NONE,
+        NULL,
+        &err
+    );
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", err->message);
+        g_error_free(err);
+        g_object_unref(gophermap);
+        return FALSE;
+    }
+
+    g_slist_foreach(map_lines, write_map_line, out_stream);
+
+    g_object_unref(out_stream);
+    g_object_unref(gophermap);
+    return TRUE;
+}
+
+void write_map_line(gpointer item, gpointer stream) {
+    struct mapline* line = (struct mapline*) item;
+    GError* err = NULL;
+
+    g_output_stream_printf(
+        (GOutputStream*) stream,
+        NULL,
+        NULL,
+        &err,
+        "%d%s\t%s\n",
+        line->type,
+        line->name,
+        line->selector        
+    );
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", err->message);
+        g_error_free(err);
+    }
 }

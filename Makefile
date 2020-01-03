@@ -20,6 +20,7 @@ test:
 		echo "line 2" >> testdir/map.template
 		echo "今日は！" >> testdir/map.template
 		./navopher testdir map.template
+		cat testdir/gophermap
 
 clean:
 		rm -rf testdir
