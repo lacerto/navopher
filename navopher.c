@@ -19,6 +19,7 @@ gchar* prepare_name(gchar* name);
 GSList* read_template_file(gchar* path);
 gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines);
 void write_map_line(gpointer item, gpointer stream);
+gchar* get_local_date_time_string(void);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
@@ -274,6 +275,21 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
 
     g_slist_foreach(map_lines, write_map_line, out_stream);
 
+    gchar* date_time = get_local_date_time_string();
+    g_output_stream_printf(
+        (GOutputStream*) out_stream,
+        NULL,
+        NULL,
+        &err,
+        "%s\n",
+        date_time      
+    );
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", err->message);
+        g_error_free(err);
+    }
+
+    g_free(date_time);
     g_object_unref(out_stream);
     g_object_unref(gophermap);
     return TRUE;
@@ -297,4 +313,11 @@ void write_map_line(gpointer item, gpointer stream) {
         fprintf(stderr, "%s\n", err->message);
         g_error_free(err);
     }
+}
+
+gchar* get_local_date_time_string(void) {
+    GDateTime* date_time = g_date_time_new_now_local();
+    gchar* str = g_date_time_format(date_time, "%F %T %Z");
+    g_date_time_unref(date_time);
+    return str;
 }
