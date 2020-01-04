@@ -16,20 +16,27 @@ struct mapline* handle_regular_file(GFileInfo* info);
 struct mapline* handle_directory(GFileInfo* info);
 gchar* remove_ext(gchar* filename);
 gchar* prepare_name(gchar* name);
-void read_template_file(gchar* path);
-gboolean create_gophermap(gchar* dir, GSList* map_lines);
+GSList* read_template_file(gchar* path);
+gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines);
 void write_map_line(gpointer item, gpointer stream);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
     GSList* map_lines = NULL;
+    GSList* template_lines = NULL;
     gboolean success;
 
     if (argc != 3) {
         return EXIT_FAILURE;
     }
 
-    read_template_file(g_build_filename(argv[1], argv[2], NULL));
+    template_lines = read_template_file(
+        g_build_filename(argv[1], argv[2], NULL)
+    );
+
+    if (template_lines == NULL) {
+        return EXIT_FAILURE;
+    }
 
     dir = g_file_new_for_commandline_arg(argv[1]);
     map_lines = get_map_lines(dir);
@@ -39,8 +46,11 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    success = create_gophermap(argv[1], map_lines);
-    g_slist_free_full(map_lines, free_map_line);     
+    success = create_gophermap(argv[1], template_lines, map_lines);
+    
+    g_slist_free_full(map_lines, free_map_line);
+    g_slist_free_full(template_lines, g_free);  
+    
     if (!success) {
         return EXIT_FAILURE;
     }
@@ -187,11 +197,12 @@ gchar* prepare_name(gchar* name) {
     return g_string_free(retval, FALSE);
 }
 
-void read_template_file(gchar* path) {
+GSList* read_template_file(gchar* path) {
     GFile* template_file = NULL;
     GFileInputStream* in_stream = NULL;
     GDataInputStream* data_stream = NULL;
     GError* err = NULL;
+    GSList* template_lines = NULL;
     gchar* line;
 
     template_file = g_file_new_for_path(path);
@@ -200,7 +211,7 @@ void read_template_file(gchar* path) {
         fprintf(stderr, "%s\n", err->message);
         g_error_free(err);
         g_object_unref(template_file);
-        return;
+        return NULL;
     }
 
     data_stream = g_data_input_stream_new((GInputStream*) in_stream);
@@ -214,16 +225,17 @@ void read_template_file(gchar* path) {
         // EOF reached
         if (line == NULL) break;
 
-        printf("%s\n", line);
-        g_free(line);
+        // Add the line to the list. Lines must be freed afterwards.
+        template_lines = g_slist_append(template_lines, line);
     }
 
     g_object_unref(data_stream);
     g_object_unref(in_stream);
     g_object_unref(template_file);
+    return template_lines;
 }
 
-gboolean create_gophermap(gchar* dir, GSList* map_lines) {
+gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines) {
     GFile* gophermap = NULL;
     GFileOutputStream* out_stream = NULL;
     GError* err = NULL;
@@ -244,6 +256,22 @@ gboolean create_gophermap(gchar* dir, GSList* map_lines) {
         return FALSE;
     }
 
+    for (GSList* it = template_lines; it; it = it->next) {
+        g_output_stream_printf(
+            (GOutputStream*) out_stream,
+            NULL,
+            NULL,
+            &err,
+            "%s\n",
+            it->data       
+        );
+        if (err != NULL) {
+            fprintf(stderr, "%s\n", err->message);
+            g_error_free(err);
+            break;
+        }
+    }
+    
     g_slist_foreach(map_lines, write_map_line, out_stream);
 
     g_object_unref(out_stream);
