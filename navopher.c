@@ -263,7 +263,7 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
             NULL,
             &err,
             "%s\n",
-            it->data       
+            (gchar*) it->data       
         );
         if (err != NULL) {
             fprintf(stderr, "%s\n", err->message);
@@ -271,7 +271,7 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
             break;
         }
     }
-    
+
     g_slist_foreach(map_lines, write_map_line, out_stream);
 
     g_object_unref(out_stream);
