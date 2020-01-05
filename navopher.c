@@ -3,24 +3,116 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/*
+Structure for a gophermap line:
+XnameTABselector
+where X is the type, TAB is the \t character.
+*/
 struct mapline {
     gchar type;
     gchar* name;
     gchar* selector;
 };
 
+/*
+Reads a directory's contents and create gophermap lines for
+each text file (txt, md) and each directory.
+The file and directory names should have the format
+YYYY-MM-DD__Phlog_Entry_Title[.txt|.md]
+
+Returns a pointer to a GSList.
+Free the list when you are done with it.
+*/
 GSList* get_map_lines(GFile* dir);
-void free_map_line(gpointer item);
-gint compare_map_lines(gconstpointer a, gconstpointer b);
+
+/*
+Creates a gophermap line (fill the structure) for a
+regular (text) file. Only *.md and *.txt files are
+processed.
+
+Returns a pointer to a newly allocated mapline structure.
+Free the struct and its contents when you are done with them.
+*/
 struct mapline* handle_regular_file(GFileInfo* info);
+
+/*
+Creates a gophermap line (fill the structure) for a
+directory.
+
+Returns a pointer to a newly allocated mapline structure.
+Free the struct and its contents when you are done with them.
+*/
 struct mapline* handle_directory(GFileInfo* info);
+
+/*
+Frees a mapline structure and the strings its
+members point to.
+*/
+void free_map_line(gpointer item);
+
+/*
+Compares two mapline structures. Only the name members
+are compared as strings. 
+*/
+gint compare_map_lines(gconstpointer a, gconstpointer b);
+
+/*
+Removes the extension from the filename.
+Returns the original filename pointer.
+*/
 gchar* remove_ext(gchar* filename);
+
+/*
+Prepares the display name for a gophermap line.
+Tries to convert the file name:
+YYYY-MM-DD__Phlog_Title -> [YYYY-MM-DD] Phlog Title
+
+Returns a pointer to a newly allocated string, free it
+when you are done with it.
+*/
 gchar* prepare_name(gchar* name);
+
+/*
+Reads the template file and puts each line in a
+GSList.
+
+Returns a pointer to a GSList.
+Free the list when you are done with it.
+*/
 GSList* read_template_file(gchar* path);
+
+/*
+Creates a gophermap file in the given directory.
+Special keywords in the template file are substituted with 
+the list of map lines created based on the directories and text files
+in the directory or with the current date and time.
+
+If the gophermap exists it is simply overwritten.
+
+Returns TRUE if no error occurred.
+*/
 gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines);
-void write_map_line(gpointer item, gpointer stream);
-gchar* get_local_date_time_string(void);
+
+/*
+Processes a single template line.
+Substitutes the {{ FILE_LIST }} and {{ DATE_TIME }} keywords.
+
+Returns TRUE if no error occurred.
+*/
 gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_stream);
+
+/*
+Writes the contents of the mapline structure to an
+output stream.
+*/
+void write_map_line(gpointer item, gpointer stream);
+
+/*
+Returns a newly allocated string with the current date
+and time in the following format:
+YYYY-MM-DD HH:MM:SS TZ
+*/
+gchar* get_local_date_time_string(void);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
@@ -60,6 +152,15 @@ int main(int argc, char** argv) {
     return EXIT_SUCCESS;
 }
 
+/*
+Reads a directory's contents and create gophermap lines for
+each text file (txt, md) and each directory.
+The file and directory names should have the format
+YYYY-MM-DD__Phlog_Entry_Title[.txt|.md]
+
+Returns a pointer to a GSList.
+Free the list when you are done with it.
+*/
 GSList* get_map_lines(GFile* dir) {
     GFileEnumerator* file_enumerator = NULL;
     GSList* map_lines = NULL;
@@ -132,20 +233,14 @@ GSList* get_map_lines(GFile* dir) {
     return map_lines;
 }
 
-void free_map_line(gpointer item) {
-    struct mapline* line = (struct mapline*) item;
-    g_free(line->name);
-    g_free(line->selector);
-    g_free(line);
-}
+/*
+Creates a gophermap line (fill the structure) for a
+regular (text) file. Only *.md and *.txt files are
+processed.
 
-gint compare_map_lines(gconstpointer a, gconstpointer b) {
-    struct mapline const* line_a = (struct mapline*) a;
-    struct mapline const* line_b = (struct mapline*) b;
-
-    return g_strcmp0(line_a->name, line_b->name);
-}
-
+Returns a pointer to a newly allocated mapline structure.
+Free the struct and its contents when you are done with them.
+*/
 struct mapline* handle_regular_file(GFileInfo* info) {
     struct mapline* line = NULL;
     gchar const* file_name = g_file_info_get_display_name(info); 
@@ -162,6 +257,13 @@ struct mapline* handle_regular_file(GFileInfo* info) {
     return line;
 }
 
+/*
+Creates a gophermap line (fill the structure) for a
+directory.
+
+Returns a pointer to a newly allocated mapline structure.
+Free the struct and its contents when you are done with them.
+*/
 struct mapline* handle_directory(GFileInfo* info) {
     struct mapline* line = NULL;
     gchar const* name = g_file_info_get_display_name(info); 
@@ -174,6 +276,32 @@ struct mapline* handle_directory(GFileInfo* info) {
     return line;
 }
 
+/*
+Frees a mapline structure and the strings its
+members point to.
+*/
+void free_map_line(gpointer item) {
+    struct mapline* line = (struct mapline*) item;
+    g_free(line->name);
+    g_free(line->selector);
+    g_free(line);
+}
+
+/*
+Compares two mapline structures. Only the name members
+are compared as strings. 
+*/
+gint compare_map_lines(gconstpointer a, gconstpointer b) {
+    struct mapline const* line_a = (struct mapline*) a;
+    struct mapline const* line_b = (struct mapline*) b;
+
+    return g_strcmp0(line_a->name, line_b->name);
+}
+
+/*
+Removes the extension from the filename.
+Returns the original filename pointer.
+*/
 gchar* remove_ext(gchar* filename) {
     gchar* dot = g_strrstr(filename, ".");
     if (dot != NULL) {
@@ -182,6 +310,14 @@ gchar* remove_ext(gchar* filename) {
     return filename;
 }
 
+/*
+Prepares the display name for a gophermap line.
+Tries to convert the file name:
+YYYY-MM-DD__Phlog_Title -> [YYYY-MM-DD] Phlog Title
+
+Returns a pointer to a newly allocated string, free it
+when you are done with it.
+*/
 gchar* prepare_name(gchar* name) {
     GString* retval = NULL;
     gchar** tokens = g_strsplit(name, "__", -1);
@@ -199,6 +335,13 @@ gchar* prepare_name(gchar* name) {
     return g_string_free(retval, FALSE);
 }
 
+/*
+Reads the template file and puts each line in a
+GSList.
+
+Returns a pointer to a GSList.
+Free the list when you are done with it.
+*/
 GSList* read_template_file(gchar* path) {
     GFile* template_file = NULL;
     GFileInputStream* in_stream = NULL;
@@ -237,6 +380,16 @@ GSList* read_template_file(gchar* path) {
     return template_lines;
 }
 
+/*
+Creates a gophermap file in the given directory.
+Special keywords in the template file are substituted with 
+the list of map lines created based on the directories and text files
+in the directory or with the current date and time.
+
+If the gophermap exists it is simply overwritten.
+
+Returns TRUE if no error occurred.
+*/
 gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines) {
     GFile* gophermap = NULL;
     GFileOutputStream* out_stream = NULL;
@@ -271,33 +424,12 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
     return TRUE;
 }
 
-void write_map_line(gpointer item, gpointer stream) {
-    struct mapline* line = (struct mapline*) item;
-    GError* err = NULL;
+/*
+Processes a single template line.
+Substitutes the {{ FILE_LIST }} and {{ DATE_TIME }} keywords.
 
-    g_output_stream_printf(
-        (GOutputStream*) stream,
-        NULL,
-        NULL,
-        &err,
-        "%d%s\t%s\n",
-        line->type,
-        line->name,
-        line->selector        
-    );
-    if (err != NULL) {
-        fprintf(stderr, "%s\n", err->message);
-        g_error_free(err);
-    }
-}
-
-gchar* get_local_date_time_string(void) {
-    GDateTime* date_time = g_date_time_new_now_local();
-    gchar* str = g_date_time_format(date_time, "%F %T %Z");
-    g_date_time_unref(date_time);
-    return str;
-}
-
+Returns TRUE if no error occurred.
+*/
 gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_stream) {
     GError* err = NULL;
     gboolean success = TRUE;
@@ -358,4 +490,40 @@ gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_s
     }
 
     return success;
+}
+
+/*
+Writes the contents of the mapline structure to an
+output stream.
+*/
+void write_map_line(gpointer item, gpointer stream) {
+    struct mapline* line = (struct mapline*) item;
+    GError* err = NULL;
+
+    g_output_stream_printf(
+        (GOutputStream*) stream,
+        NULL,
+        NULL,
+        &err,
+        "%d%s\t%s\n",
+        line->type,
+        line->name,
+        line->selector        
+    );
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", err->message);
+        g_error_free(err);
+    }
+}
+
+/*
+Returns a newly allocated string with the current date
+and time in the following format:
+YYYY-MM-DD HH:MM:SS TZ
+*/
+gchar* get_local_date_time_string(void) {
+    GDateTime* date_time = g_date_time_new_now_local();
+    gchar* str = g_date_time_format(date_time, "%F %T %Z");
+    g_date_time_unref(date_time);
+    return str;
 }
