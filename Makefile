@@ -17,8 +17,10 @@ test:
 		touch testdir/Test7.md
 		touch testdir/xx__Test8.txt
 		echo "line 1" >> testdir/map.template
-		echo "line 2" >> testdir/map.template
+		echo "line 2 {{ TEST }}" >> testdir/map.template
+		echo "line 3 {{ FILE_LIST }} + text" >> testdir/map.template
 		echo "今日は！" >> testdir/map.template
+		echo "Ĝisdatigita je {{ DATE_TIME }}." >> testdir/map.template
 		./navopher testdir map.template
 		cat testdir/gophermap
 

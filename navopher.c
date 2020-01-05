@@ -20,6 +20,7 @@ GSList* read_template_file(gchar* path);
 gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines);
 void write_map_line(gpointer item, gpointer stream);
 gchar* get_local_date_time_string(void);
+gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_stream);
 
 int main(int argc, char** argv) {
     GFile* dir = NULL;
@@ -258,38 +259,13 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
     }
 
     for (GSList* it = template_lines; it; it = it->next) {
-        g_output_stream_printf(
-            (GOutputStream*) out_stream,
-            NULL,
-            NULL,
-            &err,
-            "%s\n",
-            (gchar*) it->data       
-        );
-        if (err != NULL) {
-            fprintf(stderr, "%s\n", err->message);
-            g_error_free(err);
-            break;
-        }
+        gboolean success = process_line(
+            (gchar*) it->data,
+            map_lines,
+            (GOutputStream*) out_stream);
+        if (!success) break;
     }
 
-    g_slist_foreach(map_lines, write_map_line, out_stream);
-
-    gchar* date_time = get_local_date_time_string();
-    g_output_stream_printf(
-        (GOutputStream*) out_stream,
-        NULL,
-        NULL,
-        &err,
-        "%s\n",
-        date_time      
-    );
-    if (err != NULL) {
-        fprintf(stderr, "%s\n", err->message);
-        g_error_free(err);
-    }
-
-    g_free(date_time);
     g_object_unref(out_stream);
     g_object_unref(gophermap);
     return TRUE;
@@ -320,4 +296,66 @@ gchar* get_local_date_time_string(void) {
     gchar* str = g_date_time_format(date_time, "%F %T %Z");
     g_date_time_unref(date_time);
     return str;
+}
+
+gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_stream) {
+    GError* err = NULL;
+    gboolean success = TRUE;
+    gboolean write_orig_line = TRUE;
+    gchar const* const FILE_LIST = "FILE_LIST";
+    gchar const* const DATE_TIME = "DATE_TIME";
+
+    gchar* start = g_strstr_len(line, -1, "{{");
+    if (start) {
+        gchar* end = g_strrstr(line, "}}");
+        if (end) {
+            gchar* keyword = g_strndup(start+2, (end-start-2));
+            g_strstrip(keyword);
+            if (g_strcmp0(keyword, FILE_LIST) == 0) {
+                g_slist_foreach(map_lines, write_map_line, out_stream);
+                write_orig_line = FALSE;
+            } else if (g_strcmp0(keyword, DATE_TIME) == 0) {
+                GString* str = g_string_new_len(line, start-line);
+                gchar* date_time = get_local_date_time_string();
+                str = g_string_append(str, date_time);
+                g_free(date_time);
+                str = g_string_append(str, end+2);
+                write_orig_line = FALSE;
+
+                g_output_stream_printf(
+                    (GOutputStream*) out_stream,
+                    NULL,
+                    NULL,
+                    &err,
+                    "%s\n",
+                    str->str       
+                );
+                if (err != NULL) {
+                    fprintf(stderr, "%s\n", err->message);
+                    g_error_free(err);
+                    success = FALSE;
+                }
+                g_string_free(str, TRUE);
+            }
+            g_free(keyword);
+        }
+    }
+
+    if (write_orig_line) {
+        g_output_stream_printf(
+            (GOutputStream*) out_stream,
+            NULL,
+            NULL,
+            &err,
+            "%s\n",
+            line       
+        );
+        if (err != NULL) {
+            fprintf(stderr, "%s\n", err->message);
+            g_error_free(err);
+            success = FALSE;
+        }
+    }
+
+    return success;
 }
