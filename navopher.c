@@ -15,6 +15,11 @@ struct mapline {
 };
 
 /*
+Prints usage information.
+*/
+void print_help(void);
+
+/*
 Reads a directory's contents and create gophermap lines for
 each text file (txt, md) and each directory.
 The file and directory names should have the format
@@ -120,7 +125,10 @@ int main(int argc, char** argv) {
     GSList* template_lines = NULL;
     gboolean success;
 
+    g_set_prgname(g_path_get_basename(argv[0]));
+
     if (argc != 3) {
+        print_help();
         return EXIT_FAILURE;
     }
 
@@ -150,6 +158,16 @@ int main(int argc, char** argv) {
     }
 
     return EXIT_SUCCESS;
+}
+
+/*
+Prints usage information.
+*/
+void print_help(void) {
+    printf("Usage: %s DIRECTORY FILE\n", g_get_prgname());
+    puts("Take the contents of DIRECTORY and generate a gophermap");
+    puts("based on the template found in FILE.");
+    puts("The generated gophermap is placed in DIRECTORY.");
 }
 
 /*
