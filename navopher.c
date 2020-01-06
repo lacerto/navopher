@@ -132,9 +132,9 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    template_lines = read_template_file(
-        g_build_filename(argv[1], argv[2], NULL)
-    );
+    gchar* path = g_build_filename(argv[1], argv[2], NULL);
+    template_lines = read_template_file(path);
+    g_free(path);
 
     if (template_lines == NULL) {
         return EXIT_FAILURE;
@@ -413,7 +413,9 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
     GFileOutputStream* out_stream = NULL;
     GError* err = NULL;
 
-    gophermap = g_file_new_build_filename(dir, "gophermap", NULL);
+    gchar* path = g_build_filename(dir, "gophermap", NULL);
+    gophermap = g_file_new_for_path(path);
+    g_free(path);
     out_stream = g_file_replace(
         gophermap,
         NULL,
