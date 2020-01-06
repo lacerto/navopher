@@ -47,6 +47,8 @@ YYYY-MM-DD__Phlog_Title.txt
 
 Directory names within `DIRECTORY` are converted similarly.
 
+The `gophermap` file in `DIRECTORY` will always be overwritten with the newly generated one!
+
 ### Template directives
 
 `FILE` is the name of the template file within `DIRECTORY`. This is the template for the generated gophermap.
@@ -57,6 +59,7 @@ Currently two directives are recognized:
 
 ### Example
 
+Contents of **gophermap.template**:
 ```
  ____  _   _ _     ___   ____
 |  _ \| | | | |   / _ \ / ___|
