@@ -47,6 +47,19 @@ YYYY-MM-DD__Phlog_Title.txt
 
 Directory names within `DIRECTORY` are converted similarly.
 
+`*.glink` files contain selectors pointing to files on another server. The name of a glink file is similar to that of a regular phlog entry:
+
+```
+YYYY-MM-DD__Phlog_on_Server_X.glink
+```
+
+The glink's content is the following:
+```
+dir/Phlog_on_Server_X.txt   serverx.org   70
+```
+
+The selector simply gets copied to the resulting gophermap with the type 0.
+
 The `gophermap` file in `DIRECTORY` will always be overwritten with the newly generated one!
 
 ### Template directives
