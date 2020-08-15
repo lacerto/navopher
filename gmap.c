@@ -50,7 +50,7 @@ GSList* get_map_lines(GFile* dir) {
         type = g_file_info_get_file_type(info);
         switch (type) {
             case G_FILE_TYPE_REGULAR:
-                line = handle_regular_file(info);
+                line = handle_regular_file(dir, info);
                 break;
             case G_FILE_TYPE_DIRECTORY:
                 line = handle_directory(info);
@@ -76,7 +76,7 @@ GSList* get_map_lines(GFile* dir) {
 }
 
 /* Creates a gophermap line for a regular (text) file. */
-struct mapline* handle_regular_file(GFileInfo* info) {
+struct mapline* handle_regular_file(GFile* dir, GFileInfo* info) {
     struct mapline* line = NULL;
     gchar const* file_name = g_file_info_get_display_name(info); 
 
@@ -88,8 +88,59 @@ struct mapline* handle_regular_file(GFileInfo* info) {
         line->selector = g_strdup(file_name);
         g_free(name);
     }
+    if (g_str_has_suffix(file_name, ".glink")) {
+        line = handle_glink(dir, file_name);
+    }
 
     return line;
+}
+
+/* Creates a gophermap line for a glink (to a file on another server). */
+struct mapline* handle_glink(GFile* dir, const char* file_name) {
+    GFile* glink_file = NULL;
+    GFileInputStream* in_stream = NULL;
+    GDataInputStream* data_stream = NULL;
+    GError* err = NULL;
+    gchar* line;
+    struct mapline* mapline = NULL;
+
+    gchar* dir_path = g_file_get_path(dir);
+    gchar* file_path = g_build_filename(dir_path, file_name, NULL);
+    g_free(dir_path);
+
+    glink_file = g_file_new_for_path(file_path);
+    g_free(file_path);
+
+    in_stream = g_file_read(glink_file, NULL, &err);
+    if (err != NULL) {
+        fprintf(stderr, "%s %s\n", err->message, file_path);
+        g_error_free(err);
+        g_object_unref(glink_file);
+        return NULL;
+    }
+
+    data_stream = g_data_input_stream_new((GInputStream*) in_stream);
+    line = g_data_input_stream_read_line_utf8(data_stream, NULL, NULL, &err);
+    if (err != NULL) {
+        fprintf(stderr, "%s\n", err->message);
+        g_error_free(err);
+        return NULL;
+    }
+
+    // EOF check
+    if (line != NULL) {
+        gchar* name = g_strdup(file_name);
+        mapline = g_new(struct mapline, 1);
+        mapline->type = 0;
+        mapline->name = prepare_name(remove_ext(name));
+        mapline->selector = line;
+        g_free(name);
+    }
+
+    g_object_unref(data_stream);
+    g_object_unref(in_stream);
+    g_object_unref(glink_file);
+    return mapline;
 }
 
 /* Creates a gophermap line for a directory. */

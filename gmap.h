@@ -30,11 +30,24 @@ GSList* get_map_lines(GFile* dir);
 Creates a gophermap line (fill the structure) for a
 regular (text) file. Only *.md and *.txt files are
 processed.
+*.glink files point to resources on another server 
+(see handle_glink).
 
 Returns a pointer to a newly allocated mapline structure.
 Free the struct and its contents when you are done with them.
 */
-struct mapline* handle_regular_file(GFileInfo* info);
+struct mapline* handle_regular_file(GFile* dir, GFileInfo* info);
+
+/*
+Creates a gophermap line for a glink (to a file on another server).
+The file's name is treated like that of a regular file
+(see handle_regular_file) and the contents of the glink file are
+read and used as a selector in the resulting gophermap line.
+
+Returns a pointer to a newly allocated mapline structure.
+Free the struct and its contents when you are done with them.
+*/
+struct mapline* handle_glink(GFile* dir, const char* file_name);
 
 /*
 Creates a gophermap line (fill the structure) for a
