@@ -6,18 +6,32 @@
 
 #define ARCHIVE_PREFIX "AR_"
 
-enum file_type { ft_dir, ft_regular, ft_archive };
+/*
+Enumeration for signaling regular phlog posts (including sub-directories)
+and archive directories containing the posts of previous years.
+*/
+enum file_type { ft_regular, ft_archive };
 
 /*
 Structure for a gophermap line:
 XnameTABselector
-where X is the type, TAB is the \t character.
+where X is the gopher_type, TAB is the \t character.
+For type see enum file_type.
 */
 struct mapline {
     enum file_type type;
     gchar gopher_type;
     gchar* name;
     gchar* selector;
+};
+
+/*
+Data for processing map lines.
+type keeps the regular posts and the archives apart.
+*/
+struct foreach_param {
+    enum file_type type;
+    GOutputStream* stream;
 };
 
 /*

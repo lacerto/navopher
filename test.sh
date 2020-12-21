@@ -17,6 +17,9 @@ echo "line 1" >> testdir/map.template
 echo "line 2 {{ TEST }}" >> testdir/map.template
 echo "line 3 {{ FILE_LIST }} + text" >> testdir/map.template
 echo "今日は！" >> testdir/map.template
+echo "" >> testdir/map.template
+echo "Archives:" >> testdir/map.template
+echo "sadjksjv {{ ARCHIVE_LIST }} sdlvca" >> testdir/map.template
 echo "Ĝisdatigita je {{ DATE_TIME }}." >> testdir/map.template
 ./navopher testdir map.template
 cat testdir/gophermap

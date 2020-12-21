@@ -159,7 +159,7 @@ struct mapline* handle_directory(GFileInfo* info) {
         line->selector = g_strdup(name);
     } else {
         line = g_new(struct mapline, 1);
-        line->type = ft_dir;
+        line->type = ft_regular;
         line->gopher_type = 1;
         line->name = prepare_name(g_strdup(name));
         line->selector = g_strdup(name);
@@ -266,6 +266,7 @@ gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_s
     gboolean success = TRUE;
     gboolean write_orig_line = TRUE;
     gchar const* const FILE_LIST = "FILE_LIST";
+    gchar const* const ARCHIVE_LIST = "ARCHIVE_LIST";
     gchar const* const DATE_TIME = "DATE_TIME";
 
     gchar* start = g_strstr_len(line, -1, "{{");
@@ -275,7 +276,16 @@ gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_s
             gchar* keyword = g_strndup(start+2, (end-start-2));
             g_strstrip(keyword);
             if (g_strcmp0(keyword, FILE_LIST) == 0) {
-                g_slist_foreach(map_lines, write_map_line, out_stream);
+                struct foreach_param param;
+                param.type = ft_regular;
+                param.stream = out_stream;
+                g_slist_foreach(map_lines, write_map_line, &param);
+                write_orig_line = FALSE;
+            } else if (g_strcmp0(keyword, ARCHIVE_LIST) == 0) {
+                struct foreach_param param;
+                param.type = ft_archive;
+                param.stream = out_stream;
+                g_slist_foreach(map_lines, write_map_line, &param);
                 write_orig_line = FALSE;
             } else if (g_strcmp0(keyword, DATE_TIME) == 0) {
                 GString* str = g_string_new_len(line, start-line);
@@ -324,22 +334,25 @@ gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_s
 }
 
 /* Writes a single gophermap line to an output stream. */
-void write_map_line(gpointer item, gpointer stream) {
+void write_map_line(gpointer item, gpointer data) {
     struct mapline* line = (struct mapline*) item;
+    struct foreach_param* param = (struct foreach_param*) data;
     GError* err = NULL;
 
-    g_output_stream_printf(
-        (GOutputStream*) stream,
-        NULL,
-        NULL,
-        &err,
-        "%d%s\t%s\n",
-        line->gopher_type,
-        line->name,
-        line->selector        
-    );
-    if (err != NULL) {
-        fprintf(stderr, "%s\n", err->message);
-        g_error_free(err);
+    if (line->type == param->type) {
+        g_output_stream_printf(
+            param->stream,
+            NULL,
+            NULL,
+            &err,
+            "%d%s\t%s\n",
+            line->gopher_type,
+            line->name,
+            line->selector        
+        );
+        if (err != NULL) {
+            fprintf(stderr, "%s\n", err->message);
+            g_error_free(err);
+        }
     }
 }
