@@ -4,13 +4,18 @@
 #include <glib.h>
 #include <gio/gio.h>
 
+#define ARCHIVE_PREFIX "AR_"
+
+enum file_type { ft_dir, ft_regular, ft_archive };
+
 /*
 Structure for a gophermap line:
 XnameTABselector
 where X is the type, TAB is the \t character.
 */
 struct mapline {
-    gchar type;
+    enum file_type type;
+    gchar gopher_type;
     gchar* name;
     gchar* selector;
 };

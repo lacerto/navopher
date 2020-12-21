@@ -52,8 +52,11 @@ int main(int argc, char** argv) {
 Prints usage information.
 */
 void print_help(void) {
-    printf("Usage: %s DIRECTORY FILE\n", g_get_prgname());
-    puts("Take the contents of DIRECTORY and generate a gophermap");
-    puts("based on the template found in FILE.");
-    puts("The generated gophermap is placed in DIRECTORY.");
+    printf("\nGenerate a gophermap for phlog posts.\n\n");
+    printf("Usage:\n  %s PHLOG_DIRECTORY GOPHERMAP_TEMPLATE\n", g_get_prgname());
+    printf("\nReuired arguments:\n");
+    printf("  PHLOG_DIRECTORY\tdirectory containing phlog posts\n");
+    printf("  GOPHERMAP_TEMPLATE\tname of the template file in PHLOG_DIRECTORY\n");
+    printf("\nThe placeholders in the template will be replaced with the posts list\n"
+           "and the gophermap generated in the given directory.\n\n");
 }

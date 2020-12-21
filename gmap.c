@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "gmap.h"
 #include "utils.h"
 
@@ -83,7 +84,8 @@ struct mapline* handle_regular_file(GFile* dir, GFileInfo* info) {
     if (g_str_has_suffix(file_name, ".txt") || g_str_has_suffix(file_name, ".md")) {
         gchar* name = g_strdup(file_name);
         line = g_new(struct mapline, 1);
-        line->type = 0;
+        line->type = ft_regular;
+        line->gopher_type = 0;
         line->name = prepare_name(remove_ext(name));
         line->selector = g_strdup(file_name);
         g_free(name);
@@ -131,7 +133,8 @@ struct mapline* handle_glink(GFile* dir, const char* file_name) {
     if (line != NULL) {
         gchar* name = g_strdup(file_name);
         mapline = g_new(struct mapline, 1);
-        mapline->type = 0;
+        mapline->type = ft_regular;
+        mapline->gopher_type = 0;
         mapline->name = prepare_name(remove_ext(name));
         mapline->selector = line;
         g_free(name);
@@ -148,10 +151,19 @@ struct mapline* handle_directory(GFileInfo* info) {
     struct mapline* line = NULL;
     gchar const* name = g_file_info_get_display_name(info); 
 
-    line = g_new(struct mapline, 1);
-    line->type = 1;
-    line->name = prepare_name(g_strdup(name));
-    line->selector = g_strdup(name);
+    if (g_str_has_prefix(name, ARCHIVE_PREFIX)) {
+        line = g_new(struct mapline, 1);
+        line->type = ft_archive;
+        line->gopher_type = 1;
+        line->name = g_strdup(name + strlen(ARCHIVE_PREFIX));
+        line->selector = g_strdup(name);
+    } else {
+        line = g_new(struct mapline, 1);
+        line->type = ft_dir;
+        line->gopher_type = 1;
+        line->name = prepare_name(g_strdup(name));
+        line->selector = g_strdup(name);
+    }
 
     return line;
 }
@@ -322,7 +334,7 @@ void write_map_line(gpointer item, gpointer stream) {
         NULL,
         &err,
         "%d%s\t%s\n",
-        line->type,
+        line->gopher_type,
         line->name,
         line->selector        
     );

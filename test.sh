@@ -10,6 +10,8 @@ touch testdir/2019-11-27__Test_5.png
 touch testdir/2019-11-26__Test_6
 touch testdir/Test7.md
 touch testdir/xx__Test8.txt
+mkdir testdir/AR_2018
+mkdir testdir/AR_2019
 echo "selector/file.md	serverx.com	70" >> testdir/2020-08-15__Test_GLink.glink
 echo "line 1" >> testdir/map.template
 echo "line 2 {{ TEST }}" >> testdir/map.template
