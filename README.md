@@ -68,6 +68,7 @@ The `gophermap` file in `DIRECTORY` will always be overwritten with the newly ge
 
 Currently two directives are recognized:
 * {{ FILE_LIST }} - the line containing this directive in the template will be replaced by the converted file list
+* {{ ARCHIVE_LIST }} - the line containing this directive in the template will be replaced by the list if archive directories having names like `AR_YYYY`
 * {{ DATE_TIME }} - this will be substituted with the machine's current local date/time.
 
 ### Example

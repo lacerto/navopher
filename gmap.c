@@ -1,14 +1,17 @@
 #include <stdio.h>
+#include <string.h>
 #include "gmap.h"
 #include "utils.h"
 
 /* Reads a directory's contents and creates gophermap lines. */
-GSList* get_map_lines(GFile* dir) {
+struct file_lists get_file_lists(GFile* dir) {
     GFileEnumerator* file_enumerator = NULL;
-    GSList* map_lines = NULL;
+    GSList* regular = NULL;
+    GSList* archive = NULL;
+    struct file_lists lists = { .regular = NULL, .archive = NULL };
     GError* err = NULL;
 
-    if (dir == NULL) return NULL;
+    if (dir == NULL) return lists;
 
     file_enumerator = g_file_enumerate_children(
         dir,
@@ -22,7 +25,7 @@ GSList* get_map_lines(GFile* dir) {
     if (err != NULL) {
         fprintf(stderr, "%s\n", err->message);
         g_error_free(err);
-        return NULL;
+        return lists;
     }
 
     while (TRUE) {
@@ -42,7 +45,7 @@ GSList* get_map_lines(GFile* dir) {
             fprintf(stderr, "%s\n", err->message);
             g_error_free(err);
             g_object_unref(file_enumerator);
-            return NULL;
+            return lists;
         }
         // end of iteration
         if (info == NULL) break;
@@ -61,18 +64,33 @@ GSList* get_map_lines(GFile* dir) {
 
         // append line to the list
         if (line != NULL) {
-            map_lines = g_slist_append(
-                map_lines,
-                line
-            );
+            switch (line->type) {
+                case ft_regular:
+                    regular = g_slist_append(
+                        regular,
+                        line
+                    );
+                    break;
+                case ft_archive:
+                    archive = g_slist_append(
+                        archive,
+                        line
+                    );
+                    break;
+                default:
+                    // should never land here
+                    break;
+            }
         }
     }
 
     g_object_unref(file_enumerator);
 
-    map_lines = g_slist_sort(map_lines, compare_map_lines);
-    map_lines = g_slist_reverse(map_lines);
-    return map_lines;
+    lists.regular = g_slist_sort(regular, compare_map_lines);
+    lists.regular = g_slist_reverse(lists.regular);
+    lists.archive = g_slist_sort(archive, compare_map_lines);
+    lists.archive = g_slist_reverse(lists.archive);
+    return lists;
 }
 
 /* Creates a gophermap line for a regular (text) file. */
@@ -83,7 +101,8 @@ struct mapline* handle_regular_file(GFile* dir, GFileInfo* info) {
     if (g_str_has_suffix(file_name, ".txt") || g_str_has_suffix(file_name, ".md")) {
         gchar* name = g_strdup(file_name);
         line = g_new(struct mapline, 1);
-        line->type = 0;
+        line->type = ft_regular;
+        line->gopher_type = 0;
         line->name = prepare_name(remove_ext(name));
         line->selector = g_strdup(file_name);
         g_free(name);
@@ -131,7 +150,8 @@ struct mapline* handle_glink(GFile* dir, const char* file_name) {
     if (line != NULL) {
         gchar* name = g_strdup(file_name);
         mapline = g_new(struct mapline, 1);
-        mapline->type = 0;
+        mapline->type = ft_regular;
+        mapline->gopher_type = 0;
         mapline->name = prepare_name(remove_ext(name));
         mapline->selector = line;
         g_free(name);
@@ -148,10 +168,19 @@ struct mapline* handle_directory(GFileInfo* info) {
     struct mapline* line = NULL;
     gchar const* name = g_file_info_get_display_name(info); 
 
-    line = g_new(struct mapline, 1);
-    line->type = 1;
-    line->name = prepare_name(g_strdup(name));
-    line->selector = g_strdup(name);
+    if (g_str_has_prefix(name, ARCHIVE_PREFIX)) {
+        line = g_new(struct mapline, 1);
+        line->type = ft_archive;
+        line->gopher_type = 1;
+        line->name = g_strdup(name + strlen(ARCHIVE_PREFIX));
+        line->selector = g_strdup(name);
+    } else {
+        line = g_new(struct mapline, 1);
+        line->type = ft_regular;
+        line->gopher_type = 1;
+        line->name = prepare_name(g_strdup(name));
+        line->selector = g_strdup(name);
+    }
 
     return line;
 }
@@ -212,7 +241,7 @@ GSList* read_template_file(gchar* path) {
 }
 
 /* Creates a gophermap file in the given directory. */
-gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines) {
+gboolean create_gophermap(gchar* dir, GSList* template_lines, struct file_lists lists) {
     GFile* gophermap = NULL;
     GFileOutputStream* out_stream = NULL;
     GError* err = NULL;
@@ -238,7 +267,7 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
     for (GSList* it = template_lines; it; it = it->next) {
         gboolean success = process_line(
             (gchar*) it->data,
-            map_lines,
+            lists,
             (GOutputStream*) out_stream);
         if (!success) break;
     }
@@ -249,11 +278,12 @@ gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines)
 }
 
 /* Processes a single template line. */
-gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_stream) {
+gboolean process_line(gchar const* line, struct file_lists lists, GOutputStream* out_stream) {
     GError* err = NULL;
     gboolean success = TRUE;
     gboolean write_orig_line = TRUE;
     gchar const* const FILE_LIST = "FILE_LIST";
+    gchar const* const ARCHIVE_LIST = "ARCHIVE_LIST";
     gchar const* const DATE_TIME = "DATE_TIME";
 
     gchar* start = g_strstr_len(line, -1, "{{");
@@ -263,7 +293,10 @@ gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_s
             gchar* keyword = g_strndup(start+2, (end-start-2));
             g_strstrip(keyword);
             if (g_strcmp0(keyword, FILE_LIST) == 0) {
-                g_slist_foreach(map_lines, write_map_line, out_stream);
+                g_slist_foreach(lists.regular, write_map_line, out_stream);
+                write_orig_line = FALSE;
+            } else if (g_strcmp0(keyword, ARCHIVE_LIST) == 0) {
+                g_slist_foreach(lists.archive, write_map_line, out_stream);
                 write_orig_line = FALSE;
             } else if (g_strcmp0(keyword, DATE_TIME) == 0) {
                 GString* str = g_string_new_len(line, start-line);
@@ -312,17 +345,17 @@ gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_s
 }
 
 /* Writes a single gophermap line to an output stream. */
-void write_map_line(gpointer item, gpointer stream) {
+void write_map_line(gpointer item, gpointer data) {
     struct mapline* line = (struct mapline*) item;
     GError* err = NULL;
 
     g_output_stream_printf(
-        (GOutputStream*) stream,
+        (GOutputStream*) data,
         NULL,
         NULL,
         &err,
         "%d%s\t%s\n",
-        line->type,
+        line->gopher_type,
         line->name,
         line->selector        
     );
