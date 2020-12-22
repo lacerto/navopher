@@ -12,6 +12,11 @@ and archive directories containing the posts of previous years.
 */
 enum file_type { ft_regular, ft_archive };
 
+struct file_lists {
+    GSList* regular;
+    GSList* archive;
+};
+
 /*
 Structure for a gophermap line:
 XnameTABselector
@@ -26,24 +31,19 @@ struct mapline {
 };
 
 /*
-Data for processing map lines.
-type keeps the regular posts and the archives apart.
-*/
-struct foreach_param {
-    enum file_type type;
-    GOutputStream* stream;
-};
-
-/*
-Reads a directory's contents and create gophermap lines for
-each text file (txt, md) and each directory.
+Reads a directory's contents and creates gophermap lines for
+each regular text file (txt, md) and each directory.
 The file and directory names should have the format
 YYYY-MM-DD__Phlog_Entry_Title[.txt|.md]
 
-Returns a pointer to a GSList.
-Free the list when you are done with it.
+The archive directories are collected in a separate list.
+These have names like AR_YYYY
+
+Returns a structure with pointers to two GSList,
+the regular and the archive list.
+Free the lists when you are done with them.
 */
-GSList* get_map_lines(GFile* dir);
+struct file_lists get_file_lists(GFile* dir);
 
 /*
 Creates a gophermap line (fill the structure) for a
@@ -108,7 +108,7 @@ If the gophermap exists it is simply overwritten.
 
 Returns TRUE if no error occurred.
 */
-gboolean create_gophermap(gchar* dir, GSList* template_lines, GSList* map_lines);
+gboolean create_gophermap(gchar* dir, GSList* template_lines, struct file_lists lists);
 
 /*
 Processes a single template line.
@@ -116,7 +116,7 @@ Substitutes the {{ FILE_LIST }} and {{ DATE_TIME }} keywords.
 
 Returns TRUE if no error occurred.
 */
-gboolean process_line(gchar const* line, GSList* map_lines, GOutputStream* out_stream);
+gboolean process_line(gchar const* line, struct file_lists lists, GOutputStream* out_stream);
 
 /*
 Writes the contents of the mapline structure to an
